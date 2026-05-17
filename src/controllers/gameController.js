@@ -34,7 +34,7 @@ export const submitScore = async (req, res) => {
     });
 
     if (existing) {
-      const isHigherBetter = ["chembattle", "labgame"].includes(game);
+      const isHigherBetter = ["chembattle", "labgame", "organiccafe"].includes(game);
       const shouldUpdate = isHigherBetter ? Number(score) > existing.score : Number(score) < existing.score;
 
       if (shouldUpdate) {
@@ -73,7 +73,7 @@ export const getLeaderboard = async (req, res) => {
         game,
         createdAt: { $gte: start, $lt: end }
       })
-      .sort({ score: ["chembattle", "labgame"].includes(game) ? -1 : 1 }) // Higher is better for chembattle and labgame, else lower
+      .sort({ score: ["chembattle", "labgame", "organiccafe"].includes(game) ? -1 : 1 }) // Higher is better for chembattle and labgame, else lower
       .limit(10)
       .populate("student", "name indexNumber batch profileImage");
 
