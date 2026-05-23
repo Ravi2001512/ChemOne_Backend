@@ -1,6 +1,5 @@
 import PhysicalExam from '../models/PhysicalExam.js';
 import PhysicalResult from '../models/PhysicalResult.js';
-import { getTransporter } from '../config/nodemailer.js';
 
 // Create a new physical exam record
 export const createPhysicalExam = async (req, res) => {
@@ -155,70 +154,4 @@ export const getMyPhysicalResults = async (req, res) => {
   }
 };
 
-// Send email notification to students
-export const notifyExamResults = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const exam = await PhysicalExam.findById(id);
-    if (!exam) return res.status(404).json({ success: false, message: "Exam not found" });
-
-    // Build the query for results
-    const query = { exam: id };
-    const { batch, studentId } = req.body;
-
-    console.log(`[Notification Request] Exam: ${id}, Batch: ${batch}, Student: ${studentId}`);
-
-    if (studentId) {
-      query.student = studentId;
-    }
-
-    const results = await PhysicalResult.find(query).populate('student', 'name email batch');
-
-    let filteredResults = results;
-    
-    // If a specific student was requested, ensure we only have that student
-    if (studentId) {
-      filteredResults = results.filter(r => r.student && r.student._id.toString() === studentId.toString());
-    } else if (batch && batch !== "All Batches") {
-      filteredResults = results.filter(r => r.student && r.student.batch === batch);
-    } else if (!batch) {
-        // Safety: If neither studentId nor batch is provided, don't default to "everyone"
-        return res.status(400).json({ success: false, message: "Please specify a student or batch to notify." });
-    }
-
-    console.log(`[Notification] Found ${filteredResults.length} relevant results to notify.`);
-
-    if (!filteredResults.length) {
-      return res.status(400).json({ success: false, message: "No results found for the selected criteria to notify." });
-    }
-
-    // Use common transporter config
-    const transporter = await getTransporter();
-
-    let sentCount = 0;
-    for (const result of filteredResults) {
-      if (result.student && result.student.email) {
-        const mailOptions = {
-          from: `"ChemBridge" <${process.env.GMAIL_USER || 'support@chembridge.app'}>`,
-          to: result.student.email,
-          subject: `Exam Results Out: ChemBridge`,
-          text: `Hello ${result.student.name},\n\nYour results for "${exam.title}" are out now.\n\nYou can log in to the website and view your detailed rank.\n\nBest regards,\nChemBridge Team`
-        };
-        try {
-          await transporter.sendMail(mailOptions);
-          sentCount++;
-          // Optional: small delay to prevent SMTP throttling
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (err) {
-          console.error(`Failed to send email to ${result.student.email}:`, err);
-        }
-      }
-    }
-
-    res.status(200).json({ success: true, message: `Notification emails sent to ${sentCount} students.` });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
 

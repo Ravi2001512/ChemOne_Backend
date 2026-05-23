@@ -8,8 +8,7 @@ import {
   uploadPhysicalResults, 
   getPhysicalExamResults,
   getBatchResultsForStudent,
-  getMyPhysicalResults,
-  notifyExamResults
+  getMyPhysicalResults
 } from '../controllers/physicalExamController.js';
 
 const router = express.Router();
@@ -22,6 +21,5 @@ router.put('/:id', protect, adminOnly, updatePhysicalExam);
 router.delete('/:id', protect, adminOnly, deletePhysicalExam);
 router.post('/upload-results', protect, adminOnly, uploadPhysicalResults);
 router.get('/:id/results', protect, adminOnly, getPhysicalExamResults);
-router.post('/:id/notify-results', protect, adminOnly, notifyExamResults);
 
 export default router;
