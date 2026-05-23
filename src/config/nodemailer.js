@@ -5,11 +5,15 @@ export const getTransporter = async () => {
   const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || "").trim();
 
   if (!gmailUser || !gmailAppPassword) {
-    console.warn("⚠️ Gmail credentials (GMAIL_USER / GMAIL_APP_PASSWORD) are missing!");
+    console.warn("⚠️ Gmail credentials missing!");
   }
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    family: 4,
+
     auth: {
       user: gmailUser,
       pass: gmailAppPassword,
