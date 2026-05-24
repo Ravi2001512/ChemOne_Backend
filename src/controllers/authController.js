@@ -202,6 +202,9 @@ export const forgotPassword = async (req, res) => {
 
     // Send email with OTP
     try {
+      if (!resend) {
+        throw new Error("Resend API key is not configured in the .env file.");
+      }
       await resend.emails.send({
         from: "ChemBridge <noreply@chembridge.lk>",
         to: user.email,
