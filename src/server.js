@@ -25,6 +25,13 @@ connectDB();
 
 const app = express();
 
+// CORS configuration (Restrict in production)
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || "*",
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+
 // Security Middlewares
 app.use(helmet()); // Set security HTTP headers
 
@@ -50,13 +57,6 @@ app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
 app.use("/api/auth/reset-password", authLimiter);
-
-// CORS configuration (Restrict in production)
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || "*",
-  optionsSuccessStatus: 200
-};
-app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' })); // Reduced limit for security
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
