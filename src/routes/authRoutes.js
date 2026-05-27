@@ -10,7 +10,11 @@ import {
   deleteStudent,
   toggleBlockStudent,
   getStudentByIndexNumber,
-  updateStudentPayment 
+  updateStudentPayment,
+  getScanSession,
+  updateScanSession,
+  clearActiveStudent,
+  clearScanHistory
 } from "../controllers/authController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
@@ -48,5 +52,11 @@ router.get("/students/search/:indexNumber", protect, adminOnly, getStudentByInde
 
 // Update Student Monthly Payment (Admin Only)
 router.post("/students/:id/payment", protect, adminOnly, updateStudentPayment);
+
+// Scan Session Endpoints (Admin Only)
+router.get("/scan-session", protect, adminOnly, getScanSession);
+router.post("/scan-session", protect, adminOnly, updateScanSession);
+router.delete("/scan-session/active", protect, adminOnly, clearActiveStudent);
+router.delete("/scan-session/history", protect, adminOnly, clearScanHistory);
 
 export default router;
