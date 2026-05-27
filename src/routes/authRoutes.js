@@ -8,7 +8,9 @@ import {
   updateUserProfile, 
   getAllStudents,
   deleteStudent,
-  toggleBlockStudent 
+  toggleBlockStudent,
+  getStudentByIndexNumber,
+  updateStudentPayment 
 } from "../controllers/authController.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
@@ -40,5 +42,11 @@ router.delete("/students/:id", protect, adminOnly, deleteStudent);
 
 // Toggle Block Student (Admin Only)
 router.patch("/students/:id/block", protect, adminOnly, toggleBlockStudent);
+
+// Search Student by Index (Admin Only)
+router.get("/students/search/:indexNumber", protect, adminOnly, getStudentByIndexNumber);
+
+// Update Student Monthly Payment (Admin Only)
+router.post("/students/:id/payment", protect, adminOnly, updateStudentPayment);
 
 export default router;
