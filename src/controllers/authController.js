@@ -202,6 +202,9 @@ export const forgotPassword = async (req, res) => {
 
     // Send email with OTP
     try {
+      if (!resend) {
+        throw new Error("Resend API key is not configured in the .env file.");
+      }
       await resend.emails.send({
         from: "ChemBridge <noreply@chembridge.lk>",
         to: user.email,
@@ -337,7 +340,7 @@ export const updateUserProfile = async (req, res) => {
 export const getAllStudents = async (req, res) => {
   try {
     const students = await User.find({ role: "student" })
-      .select("name indexNumber batch email createdAt isBlocked blockedAt")
+      .select("name indexNumber batch email createdAt isBlocked blockedAt paidMonths")
       .sort({ createdAt: -1 });
     res.json(students);
   } catch (error) {
@@ -400,6 +403,85 @@ export const toggleBlockStudent = async (req, res) => {
     });
   } catch (error) {
     console.error("Toggle block student error:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+// ─── GET STUDENT BY INDEX NUMBER (ADMIN ONLY) ───────────────────
+export const getStudentByIndexNumber = async (req, res) => {
+  try {
+    const { indexNumber } = req.params;
+    if (!indexNumber) {
+      return res.status(400).json({ message: "Index number is required." });
+    }
+
+    // Find student by case-insensitive indexNumber
+    const student = await User.findOne({
+      role: "student",
+      indexNumber: { $regex: new RegExp(`^${indexNumber.trim()}$`, "i") }
+    }).select("-password");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found with this index number." });
+    }
+
+    res.json(student);
+  } catch (error) {
+    console.error("Get student by index number error:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+// ─── UPDATE STUDENT PAYMENT (ADMIN ONLY) ─────────────────────────
+export const updateStudentPayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { month, isPaid } = req.body;
+
+    if (!month) {
+      return res.status(400).json({ message: "Month name is required." });
+    }
+
+    const student = await User.findById(id);
+    if (!student) {
+      return res.status(404).json({ message: "Student not found." });
+    }
+
+    if (student.role !== "student") {
+      return res.status(400).json({ message: "Can only manage payments for students." });
+    }
+
+    // Initialize paidMonths if not exists
+    if (!student.paidMonths) {
+      student.paidMonths = [];
+    }
+
+    const monthStr = month.trim();
+
+    if (isPaid) {
+      // Add month if it's not already in the array
+      if (!student.paidMonths.includes(monthStr)) {
+        student.paidMonths.push(monthStr);
+      }
+    } else {
+      // Remove month from the array
+      student.paidMonths = student.paidMonths.filter(m => m !== monthStr);
+    }
+
+    await student.save();
+
+    res.json({
+      message: `Payment status updated for ${monthStr}.`,
+      paidMonths: student.paidMonths,
+      student: {
+        id: student._id,
+        name: student.name,
+        indexNumber: student.indexNumber,
+        paidMonths: student.paidMonths
+      }
+    });
+  } catch (error) {
+    console.error("Update student payment error:", error);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 };
