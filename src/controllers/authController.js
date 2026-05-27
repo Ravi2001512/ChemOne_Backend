@@ -2,6 +2,7 @@ import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import resend from "../config/resend.js";
+import ScanSession from "../models/ScanSession.js";
 
 
 
@@ -482,6 +483,86 @@ export const updateStudentPayment = async (req, res) => {
     });
   } catch (error) {
     console.error("Update student payment error:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+// ─── SCAN SESSION FUNCTIONS (ADMIN ONLY) ────────────────────────
+export const getScanSession = async (req, res) => {
+  try {
+    let session = await ScanSession.findOne().populate("activeStudent");
+    if (!session) {
+      session = await ScanSession.create({ activeStudent: null, history: [] });
+    }
+    res.json(session);
+  } catch (error) {
+    console.error("Get scan session error:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+export const updateScanSession = async (req, res) => {
+  try {
+    const { indexNumber } = req.body;
+    if (!indexNumber) {
+      return res.status(400).json({ message: "Index number is required." });
+    }
+
+    const student = await User.findOne({
+      role: "student",
+      indexNumber: { $regex: new RegExp(`^${indexNumber.trim()}$`, "i") }
+    }).select("-password");
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found with this index number." });
+    }
+
+    let session = await ScanSession.findOne();
+    if (!session) {
+      session = new ScanSession();
+    }
+
+    session.activeStudent = student._id;
+
+    // Prepend to history, filter out duplicates, limit to 20
+    const cleanIndex = student.indexNumber;
+    const newHistory = [cleanIndex, ...session.history.filter((item) => item !== cleanIndex)].slice(0, 20);
+    session.history = newHistory;
+
+    await session.save();
+
+    const populatedSession = await ScanSession.findById(session._id).populate("activeStudent");
+    res.json(populatedSession);
+  } catch (error) {
+    console.error("Update scan session error:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+export const clearActiveStudent = async (req, res) => {
+  try {
+    let session = await ScanSession.findOne();
+    if (session) {
+      session.activeStudent = null;
+      await session.save();
+    }
+    res.json({ message: "Active scanned student cleared." });
+  } catch (error) {
+    console.error("Clear active student error:", error);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+};
+
+export const clearScanHistory = async (req, res) => {
+  try {
+    let session = await ScanSession.findOne();
+    if (session) {
+      session.history = [];
+      await session.save();
+    }
+    res.json({ message: "Scan history cleared." });
+  } catch (error) {
+    console.error("Clear scan history error:", error);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 };
