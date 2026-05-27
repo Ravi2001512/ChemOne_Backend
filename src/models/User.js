@@ -49,6 +49,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    paidMonths: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
