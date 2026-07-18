@@ -524,9 +524,9 @@ export const updateScanSession = async (req, res) => {
 
     session.activeStudent = student._id;
 
-    // Prepend to history, filter out duplicates, limit to 20
+    // Prepend to history, filter out duplicates (no limit)
     const cleanIndex = student.indexNumber;
-    const newHistory = [cleanIndex, ...session.history.filter((item) => item !== cleanIndex)].slice(0, 20);
+    const newHistory = [cleanIndex, ...session.history.filter((item) => item !== cleanIndex)];
     session.history = newHistory;
 
     await session.save();
