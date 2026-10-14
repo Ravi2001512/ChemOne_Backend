@@ -12,6 +12,7 @@ import spotRoutes from "./routes/spotRoutes.js";
 import physicalExamRoutes from "./routes/physicalExamRoutes.js";
 import gameRoutes from "./routes/gameRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import liveClassRoutes from "./routes/liveClassRoutes.js";
 
 const app = express();
 app.set('trust proxy', true);
@@ -39,6 +40,7 @@ app.use("/api/spots", spotRoutes);
 app.use("/api/physical-exams", physicalExamRoutes);
 app.use("/api/games", gameRoutes);
 app.use("/api/uploads", uploadRoutes);
+app.use("/api/live-classes", liveClassRoutes);
 
 // CHATBOT ROUTE
 app.use("/api/chat", chatRoutes);
