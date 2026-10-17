@@ -226,7 +226,7 @@ export const updateTest = async (req, res) => {
     const updatedTest = await SpotTest.findByIdAndUpdate(
       id,
       { title, description, duration, batch, questions, testType, testImage },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updatedTest) {
@@ -285,7 +285,7 @@ export const togglePublishTest = async (req, res) => {
     const updatedTest = await SpotTest.findByIdAndUpdate(
       id,
       updateData,
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!updatedTest) {
