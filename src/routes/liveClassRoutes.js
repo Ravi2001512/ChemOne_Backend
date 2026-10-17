@@ -153,7 +153,7 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
         : [];
     }
 
-    const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after' });
     if (!updated) {
       return res.status(404).json({ message: "Live class not found" });
     }
@@ -179,7 +179,7 @@ router.patch("/:id/access", protect, adminOnly, async (req, res) => {
         : [];
     }
 
-    const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after' });
     if (!updated) {
       return res.status(404).json({ message: "Live class not found" });
     }
@@ -202,7 +202,7 @@ router.patch("/:id/status", protect, adminOnly, async (req, res) => {
       await LiveClass.updateMany({ _id: { $ne: req.params.id }, status: "live" }, { status: "ended" });
     }
 
-    const updated = await LiveClass.findByIdAndUpdate(req.params.id, { status }, { new: true });
+    const updated = await LiveClass.findByIdAndUpdate(req.params.id, { status }, { returnDocument: 'after' });
     if (!updated) {
       return res.status(404).json({ message: "Live class not found" });
     }

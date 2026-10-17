@@ -36,7 +36,7 @@ export const updatePhysicalExam = async (req, res) => {
     const exam = await PhysicalExam.findByIdAndUpdate(
       id,
       { title, date, batch, totalMarks },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!exam) return res.status(404).json({ success: false, message: "Exam not found" });
     res.status(200).json({ success: true, exam });
@@ -75,7 +75,7 @@ export const uploadPhysicalResults = async (req, res) => {
       return await PhysicalResult.findOneAndUpdate(
         { student: item.studentId, exam: examId },
         { score: Number(item.score) },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }));
 
