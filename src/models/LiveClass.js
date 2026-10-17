@@ -45,6 +45,40 @@ const liveClassSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isRestricted: {
+      type: Boolean,
+      default: false,
+    },
+    allowedStudents: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    maxViewsPerStudent: {
+      type: Number,
+      default: 3,
+    },
+    studentViews: [
+      {
+        indexNumber: {
+          type: String,
+          trim: true,
+        },
+        studentId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        count: {
+          type: Number,
+          default: 0,
+        },
+        lastViewedAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
