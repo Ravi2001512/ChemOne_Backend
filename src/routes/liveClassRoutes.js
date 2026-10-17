@@ -1,5 +1,7 @@
 import express from "express";
+import jwt from "jsonwebtoken";
 import LiveClass from "../models/LiveClass.js";
+import User from "../models/User.js";
 import { protect, adminOnly } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -222,6 +224,153 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
     res.json({ message: "Live class deleted successfully", id: req.params.id });
   } catch (error) {
     res.status(500).json({ message: "Failed to delete live class", error: error.message });
+  }
+});
+
+// POST /api/live-classes/:id/view - Check or record student video view
+router.post("/:id/view", async (req, res) => {
+  try {
+    const { action = "record", indexNumber: providedIndex } = req.body;
+    const liveClass = await LiveClass.findById(req.params.id);
+    if (!liveClass) {
+      return res.status(404).json({ message: "Live class not found" });
+    }
+
+    let userRole = "guest";
+    let studentId = null;
+    let indexNumber = providedIndex ? String(providedIndex).trim() : null;
+
+    // Check token if provided
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+      token = req.headers.authorization.split(" ")[1];
+    } else if (req.query.token) {
+      token = req.query.token;
+    }
+
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        userRole = decoded.role;
+        studentId = decoded.id;
+        if (!indexNumber && studentId) {
+          const userDoc = await User.findById(studentId).select("indexNumber role");
+          if (userDoc) {
+            userRole = userDoc.role;
+            if (userDoc.indexNumber) indexNumber = userDoc.indexNumber.trim();
+          }
+        }
+      } catch (err) {
+        // Fallback to provided indexNumber
+      }
+    }
+
+    // Instructors/Admins have unlimited views
+    if (userRole === "instructor" || userRole === "admin") {
+      return res.json({
+        allowed: true,
+        viewsUsed: 0,
+        maxViews: liveClass.maxViewsPerStudent ?? 3,
+        remaining: liveClass.maxViewsPerStudent ?? 3,
+        isAdmin: true,
+      });
+    }
+
+    if (!indexNumber) {
+      return res.status(400).json({
+        message: "Student index number is required to verify video view limit",
+        allowed: false,
+      });
+    }
+
+    const maxViews = liveClass.maxViewsPerStudent !== undefined ? liveClass.maxViewsPerStudent : 3;
+
+    if (!Array.isArray(liveClass.studentViews)) {
+      liveClass.studentViews = [];
+    }
+
+    const lowerIndex = indexNumber.toLowerCase();
+    let studentEntry = liveClass.studentViews.find(
+      (sv) =>
+        (sv.indexNumber && sv.indexNumber.toLowerCase() === lowerIndex) ||
+        (studentId && sv.studentId && String(sv.studentId) === String(studentId))
+    );
+
+    let currentViews = studentEntry ? studentEntry.count : 0;
+
+    if (action === "record") {
+      if (currentViews >= maxViews) {
+        return res.status(403).json({
+          allowed: false,
+          viewsUsed: currentViews,
+          maxViews,
+          remaining: 0,
+          message: `You have reached the maximum allowed limit of ${maxViews} views for this video lecture.`,
+        });
+      }
+
+      if (studentEntry) {
+        studentEntry.count += 1;
+        studentEntry.lastViewedAt = new Date();
+        currentViews = studentEntry.count;
+      } else {
+        currentViews = 1;
+        liveClass.studentViews.push({
+          indexNumber,
+          studentId: studentId || undefined,
+          count: 1,
+          lastViewedAt: new Date(),
+        });
+      }
+
+      await liveClass.save();
+
+      return res.json({
+        allowed: true,
+        viewsUsed: currentViews,
+        maxViews,
+        remaining: Math.max(0, maxViews - currentViews),
+        recorded: true,
+      });
+    }
+
+    // Checking only
+    const allowed = currentViews < maxViews;
+    return res.json({
+      allowed,
+      viewsUsed: currentViews,
+      maxViews,
+      remaining: Math.max(0, maxViews - currentViews),
+      recorded: false,
+    });
+  } catch (error) {
+    console.error("Error managing video view:", error);
+    res.status(500).json({ message: "Failed to verify video view limit", error: error.message });
+  }
+});
+
+// POST /api/live-classes/:id/reset-views - Reset view counts (Admin only)
+router.post("/:id/reset-views", protect, adminOnly, async (req, res) => {
+  try {
+    const { indexNumber } = req.body;
+    const liveClass = await LiveClass.findById(req.params.id);
+    if (!liveClass) {
+      return res.status(404).json({ message: "Live class not found" });
+    }
+
+    if (indexNumber) {
+      const lower = indexNumber.toLowerCase().trim();
+      liveClass.studentViews = (liveClass.studentViews || []).filter(
+        (sv) => !sv.indexNumber || sv.indexNumber.toLowerCase().trim() !== lower
+      );
+    } else {
+      liveClass.studentViews = [];
+    }
+
+    await liveClass.save();
+    res.json({ message: "Views reset successfully", studentViews: liveClass.studentViews });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to reset views", error: error.message });
   }
 });
 
