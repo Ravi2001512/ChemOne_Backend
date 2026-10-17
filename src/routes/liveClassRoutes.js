@@ -58,7 +58,19 @@ router.get("/:id", async (req, res) => {
 // POST /api/live-classes - Create live class (Admin only)
 router.post("/", protect, adminOnly, async (req, res) => {
   try {
-    const { title, youtubeUrl, description, batch, unit, status, scheduledAt, materialsUrl, allowChat } = req.body;
+    const {
+      title,
+      youtubeUrl,
+      description,
+      batch,
+      unit,
+      status,
+      scheduledAt,
+      materialsUrl,
+      allowChat,
+      isRestricted,
+      allowedStudents,
+    } = req.body;
     
     if (!title || !youtubeUrl) {
       return res.status(400).json({ message: "Title and YouTube URL are required" });
@@ -82,6 +94,10 @@ router.post("/", protect, adminOnly, async (req, res) => {
       scheduledAt: scheduledAt || new Date(),
       materialsUrl: materialsUrl || "",
       allowChat: allowChat !== undefined ? allowChat : true,
+      isRestricted: isRestricted === true || isRestricted === "true",
+      allowedStudents: Array.isArray(allowedStudents)
+        ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
+        : [],
       createdBy: req.user?.id,
     });
 
@@ -96,7 +112,19 @@ router.post("/", protect, adminOnly, async (req, res) => {
 // PUT /api/live-classes/:id - Update live class (Admin only)
 router.put("/:id", protect, adminOnly, async (req, res) => {
   try {
-    const { title, youtubeUrl, description, batch, unit, status, scheduledAt, materialsUrl, allowChat } = req.body;
+    const {
+      title,
+      youtubeUrl,
+      description,
+      batch,
+      unit,
+      status,
+      scheduledAt,
+      materialsUrl,
+      allowChat,
+      isRestricted,
+      allowedStudents,
+    } = req.body;
     
     const updateData = {};
     if (title) updateData.title = title;
@@ -116,6 +144,14 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
     if (scheduledAt) updateData.scheduledAt = scheduledAt;
     if (materialsUrl !== undefined) updateData.materialsUrl = materialsUrl;
     if (allowChat !== undefined) updateData.allowChat = allowChat;
+    if (isRestricted !== undefined) {
+      updateData.isRestricted = isRestricted === true || isRestricted === "true";
+    }
+    if (allowedStudents !== undefined) {
+      updateData.allowedStudents = Array.isArray(allowedStudents)
+        ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
+        : [];
+    }
 
     const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { new: true });
     if (!updated) {
@@ -125,6 +161,32 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error("Error updating live class:", error);
     res.status(500).json({ message: "Failed to update live class", error: error.message });
+  }
+});
+
+// PATCH /api/live-classes/:id/access - Update access limit and allowed students (Admin only)
+router.patch("/:id/access", protect, adminOnly, async (req, res) => {
+  try {
+    const { isRestricted, allowedStudents } = req.body;
+    const updateData = {};
+
+    if (isRestricted !== undefined) {
+      updateData.isRestricted = isRestricted === true || isRestricted === "true";
+    }
+    if (allowedStudents !== undefined) {
+      updateData.allowedStudents = Array.isArray(allowedStudents)
+        ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
+        : [];
+    }
+
+    const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!updated) {
+      return res.status(404).json({ message: "Live class not found" });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating access limit:", error);
+    res.status(500).json({ message: "Failed to update access limit", error: error.message });
   }
 });
 

@@ -45,6 +45,16 @@ const liveClassSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isRestricted: {
+      type: Boolean,
+      default: false,
+    },
+    allowedStudents: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
