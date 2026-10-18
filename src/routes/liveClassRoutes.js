@@ -72,6 +72,7 @@ router.post("/", protect, adminOnly, async (req, res) => {
       allowChat,
       isRestricted,
       allowedStudents,
+      maxViewsPerStudent,
     } = req.body;
     
     if (!title || !youtubeUrl) {
@@ -100,6 +101,7 @@ router.post("/", protect, adminOnly, async (req, res) => {
       allowedStudents: Array.isArray(allowedStudents)
         ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
         : [],
+      maxViewsPerStudent: maxViewsPerStudent !== undefined ? Math.max(1, Number(maxViewsPerStudent) || 3) : 3,
       createdBy: req.user?.id,
     });
 
@@ -126,6 +128,7 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
       allowChat,
       isRestricted,
       allowedStudents,
+      maxViewsPerStudent,
     } = req.body;
     
     const updateData = {};
@@ -154,6 +157,9 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
         ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
         : [];
     }
+    if (maxViewsPerStudent !== undefined) {
+      updateData.maxViewsPerStudent = Math.max(1, Number(maxViewsPerStudent) || 3);
+    }
 
     const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after' });
     if (!updated) {
@@ -169,7 +175,7 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
 // PATCH /api/live-classes/:id/access - Update access limit and allowed students (Admin only)
 router.patch("/:id/access", protect, adminOnly, async (req, res) => {
   try {
-    const { isRestricted, allowedStudents } = req.body;
+    const { isRestricted, allowedStudents, maxViewsPerStudent } = req.body;
     const updateData = {};
 
     if (isRestricted !== undefined) {
@@ -179,6 +185,9 @@ router.patch("/:id/access", protect, adminOnly, async (req, res) => {
       updateData.allowedStudents = Array.isArray(allowedStudents)
         ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
         : [];
+    }
+    if (maxViewsPerStudent !== undefined) {
+      updateData.maxViewsPerStudent = Math.max(1, Number(maxViewsPerStudent) || 3);
     }
 
     const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after' });
