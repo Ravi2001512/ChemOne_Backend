@@ -14,8 +14,8 @@ const extractYoutubeId = (url) => {
   return match && match[2].length === 11 ? match[2] : url.length === 11 ? url : "";
 };
 
-// GET /api/live-classes - Get all live classes
-router.get("/", async (req, res) => {
+// GET /api/live-classes - Get all live classes (Registered users only)
+router.get("/", protect, async (req, res) => {
   try {
     const { batch, status } = req.query;
     const filter = {};
@@ -33,8 +33,8 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/live-classes/active - Get currently live stream
-router.get("/active", async (req, res) => {
+// GET /api/live-classes/active - Get currently live stream (Registered users only)
+router.get("/active", protect, async (req, res) => {
   try {
     const activeStream = await LiveClass.findOne({ status: "live" }).sort({ updatedAt: -1 });
     res.json(activeStream || null);
@@ -44,8 +44,8 @@ router.get("/active", async (req, res) => {
   }
 });
 
-// GET /api/live-classes/:id - Get single live class
-router.get("/:id", async (req, res) => {
+// GET /api/live-classes/:id - Get single live class (Registered users only)
+router.get("/:id", protect, async (req, res) => {
   try {
     const liveClass = await LiveClass.findById(req.params.id);
     if (!liveClass) {
@@ -72,6 +72,7 @@ router.post("/", protect, adminOnly, async (req, res) => {
       allowChat,
       isRestricted,
       allowedStudents,
+      maxViewsPerStudent,
     } = req.body;
     
     if (!title || !youtubeUrl) {
@@ -100,6 +101,7 @@ router.post("/", protect, adminOnly, async (req, res) => {
       allowedStudents: Array.isArray(allowedStudents)
         ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
         : [],
+      maxViewsPerStudent: maxViewsPerStudent !== undefined ? Math.max(1, Number(maxViewsPerStudent) || 3) : 3,
       createdBy: req.user?.id,
     });
 
@@ -126,6 +128,7 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
       allowChat,
       isRestricted,
       allowedStudents,
+      maxViewsPerStudent,
     } = req.body;
     
     const updateData = {};
@@ -154,6 +157,9 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
         ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
         : [];
     }
+    if (maxViewsPerStudent !== undefined) {
+      updateData.maxViewsPerStudent = Math.max(1, Number(maxViewsPerStudent) || 3);
+    }
 
     const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after' });
     if (!updated) {
@@ -169,7 +175,7 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
 // PATCH /api/live-classes/:id/access - Update access limit and allowed students (Admin only)
 router.patch("/:id/access", protect, adminOnly, async (req, res) => {
   try {
-    const { isRestricted, allowedStudents } = req.body;
+    const { isRestricted, allowedStudents, maxViewsPerStudent } = req.body;
     const updateData = {};
 
     if (isRestricted !== undefined) {
@@ -179,6 +185,9 @@ router.patch("/:id/access", protect, adminOnly, async (req, res) => {
       updateData.allowedStudents = Array.isArray(allowedStudents)
         ? allowedStudents.map((s) => String(s).trim()).filter(Boolean)
         : [];
+    }
+    if (maxViewsPerStudent !== undefined) {
+      updateData.maxViewsPerStudent = Math.max(1, Number(maxViewsPerStudent) || 3);
     }
 
     const updated = await LiveClass.findByIdAndUpdate(req.params.id, updateData, { returnDocument: 'after' });
@@ -227,8 +236,8 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
   }
 });
 
-// POST /api/live-classes/:id/view - Check or record student video view
-router.post("/:id/view", async (req, res) => {
+// POST /api/live-classes/:id/view - Check or record student video view (Registered students only)
+router.post("/:id/view", protect, async (req, res) => {
   try {
     const { action = "record", indexNumber: providedIndex } = req.body;
     const liveClass = await LiveClass.findById(req.params.id);
