@@ -22,19 +22,44 @@ const paymentSchema = new mongoose.Schema(
       required: true,
       min: 0.01,
     },
-    currency: {
+    source: {
       type: String,
-      default: "LKR",
-      enum: ["LKR"],
+      enum: ["bank_transfer"],
+      default: "bank_transfer",
     },
     status: {
       type: String,
-      enum: ["pending", "paid", "failed", "chargeback"],
+      enum: ["pending", "paid", "rejected"],
       default: "pending",
       index: true,
     },
-    gatewayPaymentId: String,
-    paymentMethod: String,
+    studentName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    indexNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    slipObjectName: {
+      type: String,
+      required: true,
+    },
+    slipMimeType: {
+      type: String,
+      required: true,
+    },
+    reviewNote: {
+      type: String,
+      maxlength: 500,
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    reviewedAt: Date,
   },
   { timestamps: true }
 );

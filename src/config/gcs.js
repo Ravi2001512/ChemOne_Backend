@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename); // This is g:\ChemOne\backend\src\co
 // Resolve absolute path to the serviceAccountKey.json in the backend root
 const keyFilePath = path.join(__dirname, '../../serviceAccountKey.json');
 
-const storage = new Storage({
+export const storage = new Storage({
   credentials: process.env.GCS_CREDENTIALS ? JSON.parse(process.env.GCS_CREDENTIALS) : undefined,
   keyFilename: process.env.GCS_CREDENTIALS ? undefined : keyFilePath,
   projectId: process.env.GCS_PROJECT_ID,
@@ -19,5 +19,9 @@ if (!process.env.GCS_BUCKET_NAME) {
 }
 
 const bucket = storage.bucket(process.env.GCS_BUCKET_NAME || 'placeholder-bucket');
+
+export const paymentSlipsBucket = process.env.PAYMENT_SLIPS_BUCKET_NAME
+  ? storage.bucket(process.env.PAYMENT_SLIPS_BUCKET_NAME)
+  : null;
 
 export default bucket;

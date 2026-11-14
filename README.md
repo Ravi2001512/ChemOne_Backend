@@ -1,14 +1,18 @@
-# Backend payment configuration
+# Payment slip setup
 
-The student payment page uses PayHere hosted checkout. Card details are entered on PayHere's site; this API creates signed checkout requests and only records a payment after validating PayHere's server-to-server notification.
+Students submit bank-transfer payment slips through the authenticated payment page. The API checks that the submitted name and index number match the signed-in student, stores the file in private Cloud Storage, and leaves the payment pending until an admin approves or rejects it.
 
-Copy `.env.example` to `.env` and configure:
+## Storage configuration
 
-- `PAYHERE_MERCHANT_ID` and `PAYHERE_MERCHANT_SECRET`: from the PayHere merchant portal. Register the website domain and use the secret associated with that domain.
-- `PAYHERE_MODE`: `sandbox` for testing (default for any value other than `live`); set to `live` only after successful sandbox testing.
-- `FRONTEND_URL` and `BACKEND_URL`: public website/API base URLs. PayHere must be able to reach `BACKEND_URL/api/payments/payhere/notify`.
-- `CLASS_FEE_LKR`: initial monthly fee in LKR; defaults to `2500`. Admins can update the fee and bank-transfer account later from **Admin → Payment Settings**; those settings are stored in MongoDB and shown on the student payment page.
+Set `PAYMENT_SLIPS_BUCKET_NAME` to a dedicated Google Cloud Storage bucket. Configure the bucket with uniform bucket-level access and public access prevention, and grant the backend service account permission to create/read/delete objects. Payment slips are never made public; admins open them through short-lived signed URLs.
 
-Online checkout remains disabled until the merchant credentials and both base URLs are configured. Never expose the merchant secret in frontend variables or source control. Use PayHere's sandbox account and test cards before enabling live checkout.
+The backend also needs its existing Google Cloud Storage credentials (`GCS_CREDENTIALS` or the service account key file) and `GCS_PROJECT_ID`. Copy `.env.example` to `.env` and set:
 
-PayHere payments are recorded separately from the Theory/Revision/Paper class-payment flags used by the QR scanner.
+- `PAYMENT_SLIPS_BUCKET_NAME`: the private bucket for uploaded receipts.
+- `CLASS_FEE_LKR`: initial monthly fee in LKR; defaults to `2500`.
+
+Admins can update the monthly fee and bank-transfer account from **Admin → Payment Settings**. Those settings are stored in MongoDB and displayed to students. The bucket must be configured before students can submit slips.
+
+## Payment review
+
+Only authenticated student accounts can upload a slip, and the entered student name and index number must match the account. JPG, PNG, WebP, and PDF files up to 5 MB are accepted. Admins can view submissions under **Admin → Payment Slips**; approving a slip marks its selected months paid, while rejecting it allows the student to submit again.
