@@ -7,9 +7,19 @@ const liveClassSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    platform: {
+      type: String,
+      enum: ["youtube", "zoom"],
+      default: "youtube",
+    },
     youtubeUrl: {
       type: String,
-      required: true,
+      default: "",
+      trim: true,
+    },
+    meetingUrl: {
+      type: String,
+      default: "",
       trim: true,
     },
     videoId: {
