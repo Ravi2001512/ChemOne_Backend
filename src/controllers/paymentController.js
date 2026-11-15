@@ -435,6 +435,43 @@ export const getPaymentSlipUrl = async (req, res) => {
   }
 };
 
+export const deletePaymentSlip = async (req, res) => {
+  try {
+    if (!paymentSlipsBucket) {
+      return res.status(503).json({
+        message: "Private payment slip storage is not configured.",
+      });
+    }
+
+    const payment = await Payment.findOne({
+      _id: req.params.id,
+      source: "bank_transfer",
+    }).select("slipObjectName");
+    if (!payment) {
+      return res.status(404).json({ message: "Payment slip not found." });
+    }
+
+    await paymentSlipsBucket.file(payment.slipObjectName).delete({
+      ignoreNotFound: true,
+    });
+    const result = await Payment.deleteOne({
+      _id: payment._id,
+      source: "bank_transfer",
+    });
+    if (result.deletedCount !== 1) {
+      return res.status(404).json({ message: "Payment slip not found." });
+    }
+
+    res.json({
+      message: "Payment slip and payment record deleted.",
+      paymentId: payment._id,
+    });
+  } catch (error) {
+    console.error("Delete payment slip error:", error);
+    res.status(500).json({ message: "Unable to delete the payment slip." });
+  }
+};
+
 export const reviewPaymentSlip = async (req, res) => {
   try {
     const { decision, reviewNote = "" } = req.body;

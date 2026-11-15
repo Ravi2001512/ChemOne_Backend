@@ -5,6 +5,7 @@ import {
   getPaymentConfig,
   getPaymentSlipUrl,
   getPaymentSlips,
+  deletePaymentSlip,
   reviewPaymentSlip,
   submitPaymentSlip,
   updatePaymentSettings,
@@ -52,6 +53,7 @@ router.put("/settings", protect, adminOnly, updatePaymentSettings);
 router.post("/slips", protect, studentOnly, parsePaymentSlip, submitPaymentSlip);
 router.get("/admin/slips", protect, adminOnly, getPaymentSlips);
 router.get("/admin/slips/:id/file", protect, adminOnly, getPaymentSlipUrl);
+router.delete("/admin/slips/:id", protect, adminOnly, deletePaymentSlip);
 router.patch("/admin/slips/:id/review", protect, adminOnly, reviewPaymentSlip);
 
 export default router;
