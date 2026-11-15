@@ -18,6 +18,10 @@ if (!process.env.GCS_BUCKET_NAME) {
   console.error("❌ ERROR: GCS_BUCKET_NAME is not defined in environment variables.");
 }
 
+if (!process.env.PAYMENT_SLIPS_BUCKET_NAME) {
+  console.warn("Payment slip uploads are disabled: PAYMENT_SLIPS_BUCKET_NAME is not defined.");
+}
+
 const bucket = storage.bucket(process.env.GCS_BUCKET_NAME || 'placeholder-bucket');
 
 export const paymentSlipsBucket = process.env.PAYMENT_SLIPS_BUCKET_NAME

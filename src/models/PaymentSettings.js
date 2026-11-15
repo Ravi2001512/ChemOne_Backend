@@ -9,8 +9,12 @@ const paymentSettingsSchema = new mongoose.Schema(
     },
     monthlyFee: {
       type: Number,
-      required: true,
-      min: 0.01,
+      min: 0,
+    },
+    classFees: {
+      theory: { type: Number, min: 0.01 },
+      revision: { type: Number, min: 0.01 },
+      paper: { type: Number, min: 0.01 },
     },
     bankDetails: {
       bankName: { type: String, required: true, trim: true },

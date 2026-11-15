@@ -4,10 +4,25 @@ import PaymentSettings from "../models/PaymentSettings.js";
 import User from "../models/User.js";
 import { paymentSlipsBucket } from "../config/gcs.js";
 
+const CLASS_TYPES = ["theory", "revision", "paper"];
+
 const getDefaultMonthlyFee = () => {
   const fee = Number(process.env.CLASS_FEE_LKR || 2500);
   return Number.isFinite(fee) && fee > 0 ? fee : 2500;
 };
+
+const getClassFees = (settings) => {
+  const legacyFee = Number(settings.monthlyFee) || getDefaultMonthlyFee();
+  return Object.fromEntries(
+    CLASS_TYPES.map((classType) => [
+      classType,
+      Number(settings.classFees?.[classType]) || legacyFee,
+    ])
+  );
+};
+
+const getPaymentClassTypes = (payment) =>
+  payment.classTypes?.length ? payment.classTypes : CLASS_TYPES;
 
 const getPaymentSettings = async () => {
   const existing = await PaymentSettings.findOne({ key: "main" });
@@ -17,6 +32,9 @@ const getPaymentSettings = async () => {
     return await PaymentSettings.create({
       key: "main",
       monthlyFee: getDefaultMonthlyFee(),
+      classFees: Object.fromEntries(
+        CLASS_TYPES.map((classType) => [classType, getDefaultMonthlyFee()])
+      ),
       bankDetails: {
         bankName: "Bank of Ceylon",
         branch: "Galle Branch",
@@ -82,7 +100,7 @@ export const getPaymentConfig = async (req, res) => {
       getPaymentSettings(),
       req.user.role === "student"
         ? Payment.find({ student: req.user.id, status: "paid" })
-            .select("months")
+            .select("months classTypes")
             .lean()
         : Promise.resolve([]),
       req.user.role === "student"
@@ -91,7 +109,7 @@ export const getPaymentConfig = async (req, res) => {
             source: "bank_transfer",
             status: "pending",
           })
-            .select("months")
+            .select("months classTypes")
             .lean()
         : Promise.resolve([]),
       req.user.role === "student"
@@ -100,19 +118,31 @@ export const getPaymentConfig = async (req, res) => {
             source: "bank_transfer",
             status: "rejected",
           })
-            .select("months")
+            .select("months classTypes")
             .lean()
         : Promise.resolve([]),
     ]);
 
     res.json({
-      monthlyFee: settings.monthlyFee,
+      classFees: getClassFees(settings),
       bankDetails: settings.bankDetails,
       currency: "LKR",
       paymentSlipStorageEnabled: Boolean(paymentSlipsBucket),
       paidMonths: [...new Set(paidPayments.flatMap((payment) => payment.months))],
       pendingMonths: [...new Set(pendingPayments.flatMap((payment) => payment.months))],
       rejectedMonths: [...new Set(rejectedPayments.flatMap((payment) => payment.months))],
+      paidClassMonths: paidPayments.map((payment) => ({
+        months: payment.months,
+        classTypes: getPaymentClassTypes(payment),
+      })),
+      pendingClassMonths: pendingPayments.map((payment) => ({
+        months: payment.months,
+        classTypes: getPaymentClassTypes(payment),
+      })),
+      rejectedClassMonths: rejectedPayments.map((payment) => ({
+        months: payment.months,
+        classTypes: getPaymentClassTypes(payment),
+      })),
     });
   } catch (error) {
     console.error("Get payment settings error:", error);
@@ -122,13 +152,24 @@ export const getPaymentConfig = async (req, res) => {
 
 export const updatePaymentSettings = async (req, res) => {
   try {
-    const { monthlyFee, bankDetails } = req.body;
-    const fee = Number(monthlyFee);
+    const { classFees, bankDetails } = req.body;
     const fields = ["bankName", "branch", "accountName", "accountNumber"];
+    const parsedFees = Object.fromEntries(
+      CLASS_TYPES.map((classType) => [classType, Number(classFees?.[classType])])
+    );
     if (
-      !Number.isFinite(fee) ||
-      fee < 0.01 ||
-      fee > 10000000 ||
+      CLASS_TYPES.some(
+        (classType) =>
+          !Number.isFinite(parsedFees[classType]) ||
+          parsedFees[classType] < 0.01 ||
+          parsedFees[classType] > 10000000
+      )
+    ) {
+      return res.status(400).json({
+        message: "Enter a valid fee for each class option.",
+      });
+    }
+    if (
       !bankDetails ||
       fields.some(
         (field) =>
@@ -138,7 +179,7 @@ export const updatePaymentSettings = async (req, res) => {
       )
     ) {
       return res.status(400).json({
-        message: "Enter a valid fee and complete bank account details.",
+        message: "Complete all bank account details before saving.",
       });
     }
 
@@ -146,7 +187,13 @@ export const updatePaymentSettings = async (req, res) => {
       { key: "main" },
       {
         $set: {
-          monthlyFee: Math.round(fee * 100) / 100,
+          classFees: Object.fromEntries(
+            CLASS_TYPES.map((classType) => [
+              classType,
+              Math.round(parsedFees[classType] * 100) / 100,
+            ])
+          ),
+          monthlyFee: Math.round(parsedFees.theory * 100) / 100,
           bankDetails: Object.fromEntries(
             fields.map((field) => [field, bankDetails[field].trim()])
           ),
@@ -159,7 +206,7 @@ export const updatePaymentSettings = async (req, res) => {
 
     res.json({
       message: "Payment settings updated successfully.",
-      monthlyFee: settings.monthlyFee,
+      classFees: getClassFees(settings),
       bankDetails: settings.bankDetails,
     });
   } catch (error) {
@@ -209,35 +256,53 @@ export const submitPaymentSlip = async (req, res) => {
     } catch {
       return res.status(400).json({ message: "Select valid months to pay for." });
     }
+    let classTypes;
+    try {
+      classTypes = JSON.parse(req.body.classTypes);
+    } catch {
+      return res.status(400).json({ message: "Select valid class options to pay for." });
+    }
+    if (
+      !Array.isArray(classTypes) ||
+      classTypes.length === 0 ||
+      classTypes.some((classType) => !CLASS_TYPES.includes(classType)) ||
+      new Set(classTypes).size !== classTypes.length
+    ) {
+      return res.status(400).json({ message: "Select one or more valid class options." });
+    }
     if (!isValidMonths(months)) {
       return res.status(400).json({ message: "Select valid unpaid months to pay for." });
     }
 
-    const [settings, paidPayments, pendingPayment] = await Promise.all([
+    const [settings, paidPayments, pendingPayments] = await Promise.all([
       getPaymentSettings(),
       Payment.find({
         student: user._id,
         status: "paid",
         months: { $in: months },
       })
-        .select("months")
+        .select("months classTypes")
         .lean(),
-      Payment.findOne({
+      Payment.find({
         student: user._id,
         source: "bank_transfer",
         status: "pending",
         months: { $in: months },
-      }).lean(),
+      })
+        .select("months classTypes")
+        .lean(),
     ]);
-    const paidMonths = new Set(paidPayments.flatMap((payment) => payment.months));
-    if (months.some((month) => paidMonths.has(month))) {
+    const hasOverlap = (payment) =>
+      payment.months.some((month) => months.includes(month)) &&
+      getPaymentClassTypes(payment).some((classType) => classTypes.includes(classType));
+    if (paidPayments.some(hasOverlap)) {
       return res.status(409).json({
-        message: "One or more selected months are already marked as paid.",
+        message: "One or more selected classes are already paid for a selected month.",
       });
     }
-    if (pendingPayment) {
+    if (pendingPayments.some(hasOverlap)) {
       return res.status(409).json({
-        message: "A payment slip for one or more selected months is already awaiting review.",
+        message: "A payment slip for one or more selected classes is already awaiting review.",
       });
     }
 
@@ -263,7 +328,13 @@ export const submitPaymentSlip = async (req, res) => {
       orderId,
       student: user._id,
       months,
-      amount: Math.round(months.length * settings.monthlyFee * 100) / 100,
+      classTypes,
+      amount:
+        Math.round(
+          months.length *
+            classTypes.reduce((total, classType) => total + getClassFees(settings)[classType], 0) *
+            100
+        ) / 100,
       source: "bank_transfer",
       status: "pending",
       studentName,
@@ -277,6 +348,7 @@ export const submitPaymentSlip = async (req, res) => {
       payment: {
         id: payment._id,
         months: payment.months,
+        classTypes: payment.classTypes,
         amount: payment.amount,
         status: payment.status,
       },
@@ -319,6 +391,7 @@ export const getPaymentSlips = async (req, res) => {
         studentName: payment.studentName,
         indexNumber: payment.indexNumber,
         months: payment.months,
+        classTypes: getPaymentClassTypes(payment),
         amount: payment.amount,
         status: payment.status,
         slipMimeType: payment.slipMimeType,
@@ -353,6 +426,7 @@ export const getPaymentSlipUrl = async (req, res) => {
       version: "v4",
       action: "read",
       expires: Date.now() + 5 * 60 * 1000,
+      responseDisposition: "inline",
     });
     res.json({ url });
   } catch (error) {

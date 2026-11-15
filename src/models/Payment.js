@@ -17,6 +17,10 @@ const paymentSchema = new mongoose.Schema(
       type: [String],
       required: true,
     },
+    classTypes: {
+      type: [{ type: String, enum: ["theory", "revision", "paper"] }],
+      default: ["theory", "revision", "paper"],
+    },
     amount: {
       type: Number,
       required: true,

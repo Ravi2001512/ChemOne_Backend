@@ -9,9 +9,12 @@ Set `PAYMENT_SLIPS_BUCKET_NAME` to a dedicated Google Cloud Storage bucket. Conf
 The backend also needs its existing Google Cloud Storage credentials (`GCS_CREDENTIALS` or the service account key file) and `GCS_PROJECT_ID`. Copy `.env.example` to `.env` and set:
 
 - `PAYMENT_SLIPS_BUCKET_NAME`: the private bucket for uploaded receipts.
-- `CLASS_FEE_LKR`: initial monthly fee in LKR; defaults to `2500`.
+- `GCS_CREDENTIALS` or `serviceAccountKey.json`: credentials with permission to create, read, and delete objects in the private bucket.
+- `GCS_PROJECT_ID`: the Google Cloud project containing the bucket.
 
-Admins can update the monthly fee and bank-transfer account from **Admin → Payment Settings**. Those settings are stored in MongoDB and displayed to students. The bucket must be configured before students can submit slips.
+Set these variables in the backend hosting environment and restart the backend. The payment-slip bucket must be configured before students can submit slips.
+
+Admins can update the Theory, Revision, and Paper fees and bank-transfer account from **Admin → Payment Settings**. Those settings are stored in MongoDB and displayed to students.
 
 ## Payment review
 
