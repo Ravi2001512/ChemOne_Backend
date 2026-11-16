@@ -1,21 +1,102 @@
-# Payment slip setup
+# ChemBridge Backend ⚙️
 
-Students submit bank-transfer payment slips through the authenticated payment page. The API checks that the submitted name and index number match the signed-in student, stores the file in private Cloud Storage, and leaves the payment pending until an admin approves or rejects it.
+The robust server-side engine for the ChemBridge platform, providing secure APIs, AI-powered features, and data management. Built with Node.js, Express, and MongoDB.
 
-## Storage configuration
+## 🚀 Key Modules
 
-Set `PAYMENT_SLIPS_BUCKET_NAME` to a dedicated Google Cloud Storage bucket. Configure the bucket with uniform bucket-level access and public access prevention, and grant the backend service account permission to create/read/delete objects. Payment slips are never made public; admins open them through short-lived signed URLs.
+### 🔐 Authentication & Security
+- **JWT Auth**: Secure user authentication and session management.
+- **Role-Based Access**: Specialized endpoints for Students and Admins.
+- **Bcrypt**: Industrial-strength password hashing.
 
-The backend also needs its existing Google Cloud Storage credentials (`GCS_CREDENTIALS` or the service account key file) and `GCS_PROJECT_ID`. Copy `.env.example` to `.env` and set:
+### 🤖 AI & RAG (Retrieval-Augmented Generation)
+- **Gemini AI**: Integrated with Google's Generative AI for intelligent tutoring and chatbots.
+- **Pinecone**: Vector database for efficient semantic search and knowledge retrieval.
+- **PDF Processing**: Automated extraction and processing of chemistry content from PDF documents.
 
-- `PAYMENT_SLIPS_BUCKET_NAME`: the private bucket for uploaded receipts.
-- `GCS_CREDENTIALS` or `serviceAccountKey.json`: credentials with permission to create, read, and delete objects in the private bucket.
-- `GCS_PROJECT_ID`: the Google Cloud project containing the bucket.
+### 📊 Data & Storage
+- **MongoDB**: Scalable NoSQL database for student records, tests, and platform data.
+- **Google Cloud Storage**: Secure cloud storage for documents and assets.
+- **Multer**: Robust handling of multipart/form-data for file uploads.
 
-Set these variables in the backend hosting environment and restart the backend. The payment-slip bucket must be configured before students can submit slips.
+### 📧 Communications
+- **Email Services**: Automated notifications for exam results and password resets via Gmail/Nodemailer.
 
-Admins can update the Theory, Revision, and Paper fees and bank-transfer account from **Admin → Payment Settings**. Those settings are stored in MongoDB and displayed to students.
+## 🛠️ Tech Stack
 
-## Payment review
+- **Runtime**: [Node.js](https://nodejs.org/)
+- **Framework**: [Express.js](https://expressjs.com/)
+- **Database**: [MongoDB](https://www.mongodb.com/) (Mongoose ODM)
+- **Vector DB**: [Pinecone](https://www.pinecone.io/)
+- **AI**: [Google Generative AI](https://ai.google.dev/)
+- **Cloud**: [Google Cloud Platform](https://cloud.google.com/) (Storage, OAuth2)
 
-Only authenticated student accounts can upload a slip, and the entered student name and index number must match the account. JPG, PNG, WebP, and PDF files up to 5 MB are accepted. Admins can view submissions under **Admin → Payment Slips**; approving a slip marks its selected months paid, while rejecting it allows the student to submit again.
+## 📋 Prerequisites
+
+- **Node.js**: v20.0.0 or higher
+- **MongoDB**: A running instance (Atlas or local)
+
+## ⚙️ Getting Started
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd ChemOne/backend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure Environment Variables**
+   Create a `.env` file in the root directory:
+   ```env
+   PORT=5000
+   MONGO_URI=your_mongodb_uri
+   JWT_SECRET=your_secret_key
+   GMAIL_USER=your_email
+   GMAIL_CLIENT_ID=...
+   GMAIL_CLIENT_SECRET=...
+   GMAIL_REFRESH_TOKEN=...
+   GCS_BUCKET_NAME=...
+   GCS_PROJECT_ID=...
+   GCS_KEY_FILE=./serviceAccountKey.json
+   PINECONE_API_KEY=...
+   GEMINI_API_KEY=...
+   ```
+
+4. **Start the Server**
+   ```bash
+   # Development mode (with nodemon)
+   npm run dev
+
+   # Production mode
+   npm start
+   ```
+
+## 📂 Project Structure
+
+```text
+src/
+├── config/       # Database and Cloud configurations
+├── controllers/  # Request handlers and business logic
+├── middleware/   # Auth, role checks, and error handling
+├── models/       # Mongoose schemas (User, Test, Result, etc.)
+├── routes/       # API route definitions
+├── utils/        # Helper functions and AI/Email services
+├── app.js        # Express application setup
+└── server.js     # Entry point
+```
+
+## 📡 API Endpoints (Brief)
+
+- `/api/auth`: Signup, Login, Profile.
+- `/api/admin`: Dashboard stats, student management.
+- `/api/chat`: AI query and knowledge retrieval.
+- `/api/spot`: Spot test creation and management.
+- `/api/worksheet`: Daily worksheet operations.
+- `/api/physical-exam`: Result processing and notifications.
+
+---
+
