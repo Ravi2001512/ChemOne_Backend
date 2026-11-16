@@ -12,6 +12,7 @@ import chatRoutes from "./routes/chatRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import gameRoutes from "./routes/gameRoutes.js";
 import liveClassRoutes from "./routes/liveClassRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import rateLimit from "express-rate-limit";
@@ -75,6 +76,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/games", gameRoutes);
 app.use("/api/live-classes", liveClassRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // Keep-alive endpoints (for UptimeRobot / monitoring)
 app.get("/ping", (req, res) => {

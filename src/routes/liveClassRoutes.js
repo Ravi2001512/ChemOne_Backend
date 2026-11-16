@@ -14,6 +14,23 @@ const extractYoutubeId = (url) => {
   return match && match[2].length === 11 ? match[2] : url.length === 11 ? url : "";
 };
 
+const normalizeZoomUrl = (value) => {
+  const trimmedValue = typeof value === "string" ? value.trim() : "";
+  if (!trimmedValue) return "";
+
+  try {
+    const hasProtocol = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmedValue);
+    const url = new URL(hasProtocol ? trimmedValue : `https://${trimmedValue}`);
+    const isZoomHost =
+      (url.hostname === "zoom.us" || url.hostname.endsWith(".zoom.us") ||
+        url.hostname === "zoom.com" || url.hostname.endsWith(".zoom.com") ||
+        url.hostname === "zoomgov.com" || url.hostname.endsWith(".zoomgov.com"));
+    return url.protocol === "https:" && isZoomHost ? url.href : "";
+  } catch {
+    return "";
+  }
+};
+
 // GET /api/live-classes - Get all live classes (Registered users only)
 router.get("/", protect, async (req, res) => {
   try {
@@ -62,7 +79,9 @@ router.post("/", protect, adminOnly, async (req, res) => {
   try {
     const {
       title,
+      platform = "youtube",
       youtubeUrl,
+      meetingUrl,
       description,
       batch,
       unit,
@@ -75,11 +94,23 @@ router.post("/", protect, adminOnly, async (req, res) => {
       maxViewsPerStudent,
     } = req.body;
     
-    if (!title || !youtubeUrl) {
-      return res.status(400).json({ message: "Title and YouTube URL are required" });
+    if (!title || !["youtube", "zoom"].includes(platform)) {
+      return res.status(400).json({ message: "Title and a valid live class platform are required" });
     }
 
-    const videoId = extractYoutubeId(youtubeUrl);
+    const normalizedMeetingUrl = normalizeZoomUrl(meetingUrl);
+    if (platform === "zoom" ? !normalizedMeetingUrl : !youtubeUrl) {
+      return res.status(400).json({
+        message: platform === "zoom"
+          ? "A valid Zoom meeting link is required"
+          : "A YouTube URL or video ID is required",
+      });
+    }
+
+    const videoId = platform === "youtube" ? extractYoutubeId(youtubeUrl) : "";
+    if (platform === "youtube" && !videoId) {
+      return res.status(400).json({ message: "A valid YouTube URL or video ID is required" });
+    }
 
     // If setting to live, optionally mark other streams as ended
     if (status === "live") {
@@ -88,7 +119,9 @@ router.post("/", protect, adminOnly, async (req, res) => {
 
     const liveClass = new LiveClass({
       title,
-      youtubeUrl,
+      platform,
+      youtubeUrl: platform === "youtube" ? youtubeUrl : "",
+      meetingUrl: platform === "zoom" ? normalizedMeetingUrl : "",
       videoId,
       description: description || "",
       batch: batch || "All",
@@ -118,7 +151,9 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
   try {
     const {
       title,
+      platform,
       youtubeUrl,
+      meetingUrl,
       description,
       batch,
       unit,
@@ -133,9 +168,38 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
     
     const updateData = {};
     if (title) updateData.title = title;
-    if (youtubeUrl) {
-      updateData.youtubeUrl = youtubeUrl;
-      updateData.videoId = extractYoutubeId(youtubeUrl);
+    if (platform !== undefined && !["youtube", "zoom"].includes(platform)) {
+      return res.status(400).json({ message: "Invalid live class platform" });
+    }
+    const nextPlatform = platform || (youtubeUrl !== undefined ? "youtube" : undefined);
+    if (nextPlatform === "zoom") {
+      if (platform === "zoom" && meetingUrl === undefined) {
+        return res.status(400).json({ message: "A Zoom meeting link is required" });
+      }
+      if (meetingUrl !== undefined) {
+        const normalizedMeetingUrl = normalizeZoomUrl(meetingUrl);
+        if (!normalizedMeetingUrl) {
+          return res.status(400).json({ message: "A valid Zoom meeting link is required" });
+        }
+        updateData.meetingUrl = normalizedMeetingUrl;
+      }
+      updateData.youtubeUrl = "";
+      updateData.videoId = "";
+      updateData.platform = "zoom";
+    } else if (nextPlatform === "youtube") {
+      if (platform === "youtube" && youtubeUrl === undefined) {
+        return res.status(400).json({ message: "A YouTube URL or video ID is required" });
+      }
+      if (youtubeUrl !== undefined) {
+        const videoId = extractYoutubeId(youtubeUrl);
+        if (!videoId) {
+          return res.status(400).json({ message: "A valid YouTube URL or video ID is required" });
+        }
+        updateData.youtubeUrl = youtubeUrl;
+        updateData.videoId = videoId;
+      }
+      updateData.meetingUrl = "";
+      updateData.platform = "youtube";
     }
     if (description !== undefined) updateData.description = description;
     if (batch) updateData.batch = batch;
